@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Organické vyhledávání</title>
+    <style>
+      body { font-family: sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; }
+      input { width: 100%; padding: 0.8rem; font-size: 1rem; }
+      .status { color: #555; min-height: 1.4rem; }
+      button { margin-right: 0.4rem; }
+      li { margin: 0.8rem 0; }
+      .url { color: green; font-size: 0.85rem; word-break: break-all; }
+      .snippet { color: #555; margin: 0.2rem 0 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Organické výsledky Google</h1>
+    <p>Jedno pole. Enter. 1. strana přirozeného vyhledávání. Uložit JSON nebo CSV.</p>
+    <form id="form">
+      <input id="q" name="q" type="search" required autofocus placeholder="Klíčové slovní spojení" />
+    </form>
+    <p id="status" class="status"></p>
+    <p>
+      <button type="button" id="json" disabled>Uložit JSON</button>
+      <button type="button" id="csv" disabled>Uložit CSV</button>
+    </p>
+    <ol id="list"></ol>
+    <script>
+      const form = document.getElementById("form");
+      const input = document.getElementById("q");
+      const status = document.getElementById("status");
+      const list = document.getElementById("list");
+      const jsonBtn = document.getElementById("json");
+      const csvBtn = document.getElementById("csv");
+      let data = null;
+
+      function download(name, text, type) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([text], { type }));
+        a.download = name;
+        a.click();
+      }
+
+      function csv(results) {
+        const esc = (v) => (/[",\n\r]/.test(String(v)) ? `"${String(v).replaceAll('"', '""')}"` : String(v));
+        return ["rank,title,url,snippet", ...results.map((r) => [r.rank, r.title, r.url, r.snippet].map(esc).join(","))].join("\r\n") + "\r\n";
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const q = input.value.trim();
+        status.textContent = "Hledám…";
+        list.replaceChildren();
+        jsonBtn.disabled = csvBtn.disabled = true;
+        data = null;
+        const res = await fetch("/api/search?q=" + encodeURIComponent(q));
+        const body = await res.json();
+        if (!res.ok) {
+          status.textContent = body.error || "Chyba";
+          return;
+        }
+        data = body;
+        status.textContent = body.resultCount + " organických výsledků";
+        for (const item of body.results) {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = item.url;
+          a.target = "_blank";
+          a.textContent = item.title;
+          const url = document.createElement("div");
+          url.className = "url";
+          url.textContent = item.url;
+          const sn = document.createElement("p");
+          sn.className = "snippet";
+          sn.textContent = item.snippet || "";
+          li.append(a, url, sn);
+          list.append(li);
+        }
+        jsonBtn.disabled = csvBtn.disabled = false;
+      });
+
+      jsonBtn.onclick = () => data && download("results.json", JSON.stringify(data, null, 2) + "\n", "application/json");
+      csvBtn.onclick = () => data && download("results.csv", csv(data.results), "text/csv");
+    </script>
+  </body>
+</html>
