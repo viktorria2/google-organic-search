@@ -15,3 +15,5 @@ Otevřete http://localhost:8000
 `npm start` nejdřív zkusí Google. Když Google vrátí CAPTCHA, použije záložní organický SERP.
 
 Volitelně: `docker compose up --build`
+
+Video: https://youtu.be/u5TaWzDPdMY
